@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 set -e
 
-# wait for postgres to accept connections
+npm install
+
+echo "waiting for database to be ready…"
 ATTEMPTS=0
-until node -e "require('net').createConnection({host:'db',port:5432}).on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))" 2>/dev/null; do
+until ./node_modules/.bin/prisma migrate deploy; do
   ATTEMPTS=$((ATTEMPTS+1))
   if [ $ATTEMPTS -gt 30 ]; then
-    echo "db never became reachable on db:5432" >&2
+    echo "prisma migrate deploy never succeeded against the database" >&2
     exit 1
   fi
-  echo "waiting for db…"
+  echo "migrate deploy failed, database likely not ready yet — retrying ($ATTEMPTS/30)…"
   sleep 1
 done
 
-npm install
-./node_modules/.bin/prisma migrate deploy || true
-./node_modules/.bin/prisma generate || true
-npm run db:seed || true
+./node_modules/.bin/prisma generate
+npm run db:seed
 
 exec "$@"
